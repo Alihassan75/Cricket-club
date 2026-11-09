@@ -1,0 +1,40 @@
+{
+  "name": "cricket-arena-management-system",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "seed": "tsx scripts/seed.ts",
+    "setup:indoor": "tsx scripts/setup-indoor.ts",
+    "make:admin": "tsx scripts/make-admin.ts"
+  },
+  "dependencies": {
+    "bcryptjs": "2.4.3",
+    "jose": "^6.2.12",
+    "jsonwebtoken": "9.0.2",
+    "lucide-react": "^0.427.0",
+    "mongodb": "^7.6.0",
+    "mongoose": "8.5.1",
+    "next": "^14.2.35",
+    "nodemailer": "6.9.14",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "zod": "3.23.8"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "2.4.6",
+    "@types/jsonwebtoken": "9.0.6",
+    "@types/node": "20.14.11",
+    "@types/nodemailer": "6.4.15",
+    "@types/react": "18.3.3",
+    "autoprefixer": "10.4.19",
+    "dotenv": "16.4.5",
+    "postcss": "8.4.40",
+    "tailwindcss": "3.4.7",
+    "tsx": "^4.23.13",
+    "typescript": "5.5.4"
+  }
+}

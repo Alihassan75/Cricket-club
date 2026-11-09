@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: Inter, system-ui, sans-serif;
+}
+
+/* ---------- Public site: 3D cricket ball (pure CSS, no libraries) ---------- */
+.ball-scene {
+  --bs: 220px;
+  position: relative;
+  width: var(--bs);
+  height: var(--bs);
+  transform-style: preserve-3d;
+  animation: ball-float 5s ease-in-out infinite;
+}
+.ball-body {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ee6a5d, #c8372d 50%, #6f1a14);
+  box-shadow: 0 40px 60px -20px rgba(0, 0, 0, 0.55);
+}
+.ball-tilt {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: rotateZ(-24deg) rotateX(18deg);
+}
+.ball-spin {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  animation: ball-spin 7s linear infinite;
+}
+.ball-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-sizing: border-box;
+  transform: rotateY(62deg);
+  transform-style: preserve-3d;
+}
+.ball-ring.seam { border: 3px solid #f6e9cf; }
+.ball-ring.stitch-a { border: 2px dashed #f6e9cf; transform: rotateY(62deg) translateZ(calc(var(--bs) * 0.07)) scale(0.997); }
+.ball-ring.stitch-b { border: 2px dashed #f6e9cf; transform: rotateY(62deg) translateZ(calc(var(--bs) * -0.07)) scale(0.997); }
+.ball-shine {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translateZ(calc(var(--bs) * 0.6));
+  background:
+    radial-gradient(circle at 30% 26%, rgba(255, 255, 255, 0.5), transparent 32%),
+    radial-gradient(circle at 72% 78%, rgba(0, 0, 0, 0.5), transparent 62%);
+}
+@keyframes ball-spin { to { transform: rotateY(360deg); } }
+@keyframes ball-float { 50% { transform: translateY(-14px); } }
+@media (prefers-reduced-motion: reduce) {
+  .ball-scene, .ball-spin { animation: none; }
+}
+
+/* ---------- Hero scene: stumps at the back, bat + bouncing ball in front ---------- */
+.cricket-scene { position: relative; width: 460px; height: 430px; flex-shrink: 0; }
+.cricket-scene .stumps { position: absolute; left: 250px; bottom: 70px; z-index: 1; transform: scale(1.25); transform-origin: bottom center; }
+.cricket-scene .bat {
+  position: absolute; left: 140px; bottom: 20px; z-index: 2;
+  transform-origin: 50% 96%; transform: rotate(14deg);
+  animation: bat-swing 3.6s ease-in-out infinite;
+  filter: drop-shadow(0 18px 14px rgba(0, 0, 0, 0.45));
+}
+.cricket-scene .cs-ball { position: absolute; left: 300px; bottom: 6px; z-index: 3; }
+.cricket-scene .cs-ball .ball-scene { animation: ball-bounce 1.8s cubic-bezier(0.3, 0, 0.4, 1) infinite; }
+.cricket-scene .cs-ball .ball-body { box-shadow: none; }
+.cricket-scene .cs-shadow {
+  position: absolute; left: 306px; bottom: 0; width: 120px; height: 16px; z-index: 2;
+  border-radius: 50%; background: #000; filter: blur(4px); opacity: 0.45;
+  animation: shadow-pulse 1.8s cubic-bezier(0.3, 0, 0.4, 1) infinite;
+}
+.cricket-scene .bail { transform-box: fill-box; transform-origin: center; animation: bail-hop 3.6s ease-in-out infinite; }
+.cricket-scene .bail.b2 { animation-delay: 0.12s; }
+@keyframes bat-swing { 0%, 100% { transform: rotate(14deg); } 50% { transform: rotate(22deg); } }
+@keyframes ball-bounce { 0%, 100% { transform: translateY(0); } 45% { transform: translateY(-70px); } }
+@keyframes shadow-pulse { 0%, 100% { transform: scale(1); opacity: 0.45; } 45% { transform: scale(0.7); opacity: 0.22; } }
+@keyframes bail-hop { 0%, 60%, 100% { transform: translateY(0) rotate(0); } 70% { transform: translateY(-6px) rotate(-8deg); } }
+@media (max-width: 819px) { .cricket-scene { transform: scale(0.62); transform-origin: top center; margin: 10px auto -205px; } }
+@media (prefers-reduced-motion: reduce) { .cricket-scene .bat, .cricket-scene .bail, .cricket-scene .cs-ball .ball-scene, .cricket-scene .cs-shadow { animation: none; } }
+
+/* ---------- Logged-in app: motion + micro-interactions ---------- */
+@keyframes fade-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes pop-in { from { opacity: 0; transform: scale(0.95) translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes toast-in { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: none; } }
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+@keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(200, 55, 45, 0.5); } 100% { box-shadow: 0 0 0 10px rgba(200, 55, 45, 0); } }
+.fade-up { animation: fade-up 0.35s ease backwards; } /* no "forwards": a finished animation must not trap pop-ups in a stacking context */
+.pop-in { animation: pop-in 0.15s ease backwards; }
+.toast-in { animation: toast-in 0.25s ease both; }
+.pulse-ring { animation: pulse-ring 1.6s infinite; }
+.skeleton { position: relative; overflow: hidden; background: #e9e3d5; border-radius: 12px; }
+.skeleton::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent); animation: shimmer 1.3s infinite; }
+.hover-lift { transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s; }
+.hover-lift:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(14, 42, 31, 0.12); }
+.app-shell button, .app-shell a { transition: transform 0.12s, background-color 0.15s, box-shadow 0.15s, opacity 0.15s; }
+.app-shell button:not(:disabled):active { transform: scale(0.97); }
+.app-shell tbody tr { transition: background-color 0.12s; }
+.app-shell tbody tr:hover { background: rgba(14, 42, 31, 0.04); }
+.app-shell input:focus, .app-shell select:focus, .app-shell textarea:focus { outline: 2px solid rgba(200, 55, 45, 0.45); outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) { .fade-up, .pop-in, .toast-in, .pulse-ring, .skeleton::after { animation: none; } }
+
+/* ---------- Shared form + button styles ---------- */
+.field { width: 100%; border: 1px solid #E4DCCB; background: #fff; border-radius: 14px; padding: 12px 14px; font-size: 14px; transition: border-color 0.15s, box-shadow 0.15s; outline: none; }
+.field:focus { border-color: #C8372D; box-shadow: 0 0 0 3px rgba(200, 55, 45, 0.15); }
+.btn-ball { background: #C8372D; color: #fff; font-weight: 600; font-size: 14px; border-radius: 999px; padding: 12px 24px; transition: transform 0.12s, box-shadow 0.15s, opacity 0.15s; }
+.btn-ball:hover:not(:disabled) { box-shadow: 0 8px 20px rgba(200, 55, 45, 0.35); transform: translateY(-1px); }
+.btn-ball:disabled { opacity: 0.55; cursor: not-allowed; }
+@keyframes draw-check { from { stroke-dashoffset: 40; } to { stroke-dashoffset: 0; } }
+.draw-check { stroke-dasharray: 40; animation: draw-check 0.6s 0.2s ease forwards; stroke-dashoffset: 40; }
