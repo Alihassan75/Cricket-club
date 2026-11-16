@@ -1,17 +1,7 @@
-import { Schema, models, model } from "mongoose";
+import { Schema, models, model, Types } from "mongoose";
 
-export const FACILITIES = [
-  "Flood lights",
-  "Nets",
-  "Changing room",
-  "Parking",
-  "Washroom",
-  "Drinking water",
-  "Seating area",
-  "Scoreboard",
-  "Bowling machine",
-  "Air conditioning",
-] as const;
+import { FACILITIES } from "@/lib/facilities";
+export { FACILITIES };
 
 export interface ICustomSlot {
   label?: string;
@@ -22,6 +12,7 @@ export interface ICustomSlot {
 
 export interface IGround {
   _id: string;
+  arena?: Types.ObjectId; // which arena this ground belongs to
   name: string;
   groundNumber: string;
   description?: string;
@@ -56,6 +47,7 @@ const CustomSlotSchema = new Schema<ICustomSlot>(
 
 const GroundSchema = new Schema<IGround>(
   {
+    arena: { type: Schema.Types.ObjectId, ref: "Arena", index: true },
     name: { type: String, required: true, trim: true },
     groundNumber: { type: String, required: true, trim: true },
     description: { type: String },

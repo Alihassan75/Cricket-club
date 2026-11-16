@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRole } from "@/components/RoleContext";
+import CommissionPage from "@/components/CommissionPage";
 
 type Payment = {
   _id: string;
@@ -24,7 +26,7 @@ type Booking = {
 
 const METHODS = ["Cash", "Bank Transfer", "Card", "JazzCash", "EasyPaisa"];
 
-export default function PaymentsPage() {
+function ArenaPayments() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -232,4 +234,9 @@ export default function PaymentsPage() {
       )}
     </div>
   );
+}
+
+/** The Backyard Manager sees their commission; an arena manager sees their own arena's payments. */
+export default function PaymentsPage() {
+  return useRole() === "super_admin" ? <CommissionPage /> : <ArenaPayments />;
 }

@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import Payment from "@/models/Payment";
 import Booking from "@/models/Booking";
 import { requireStaff } from "@/lib/guard";
+import { getScope, bookingIdsOf, bookingGuard } from "@/lib/arenaScope";
 import { recalculateCustomerStats } from "@/lib/customers";
 import { zodMessage } from "@/lib/validation";
 
@@ -22,7 +23,9 @@ export async function GET(req: NextRequest) {
   await connectDB();
   const sp = req.nextUrl.searchParams;
   const filter: Record<string, unknown> = {};
-  if (sp.get("bookingId")) filter.booking = sp.get("bookingId");
+  const mine = await bookingIdsOf(await getScope(guard.auth));
+  if (mine !== null) filter.booking = { $in: mine };
+  if (sp.get("bookingId")) filter.booking = mine === null || mine.some((i) => String(i) === sp.get("bookingId")) ? sp.get("bookingId") : { $in: [] };
   if (sp.get("method")) filter.method = sp.get("method");
   if (sp.get("status")) filter.status = sp.get("status");
   if (sp.get("dateFrom") || sp.get("dateTo")) {
@@ -50,6 +53,8 @@ export async function POST(req: NextRequest) {
   }
   const { bookingId, amount, method, paymentDate, notes } = parsed.data;
 
+  const denied = await bookingGuard(guard.auth, bookingId);
+  if (denied) return denied;
   await connectDB();
   const booking = await Booking.findById(bookingId);
   if (!booking) return NextResponse.json({ error: "Booking not found." }, { status: 404 });

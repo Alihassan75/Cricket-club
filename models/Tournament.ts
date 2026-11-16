@@ -5,6 +5,7 @@ export type TournamentStatus = "Upcoming" | "Registration Open" | "Ongoing" | "C
 
 export interface ITournament {
   _id: string;
+  arena?: Types.ObjectId;
   name: string;
   logoUrl?: string;
   startDate: string; // YYYY-MM-DD
@@ -24,6 +25,7 @@ export interface ITournament {
 
 const TournamentSchema = new Schema<ITournament>(
   {
+    arena: { type: Schema.Types.ObjectId, ref: "Arena", index: true },
     name: { type: String, required: true, trim: true },
     logoUrl: { type: String },
     startDate: { type: String, required: true },

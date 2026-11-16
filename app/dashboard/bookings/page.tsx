@@ -2,10 +2,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/Toast";
+import { useRole } from "@/components/RoleContext";
 
 type Booking = {
   _id: string;
-  ground: { _id: string; name: string; groundNumber: string } | null;
+  ground: { _id: string; name: string; groundNumber: string; arena?: { _id: string; name: string } | null } | null;
   customer: { _id: string; fullName: string } | null;
   customerName: string;
   phone: string;
@@ -54,6 +55,8 @@ function StatusPill({ value }: { value: string }) {
 
 export default function BookingsPage() {
   const toast = useToast();
+  const isBackyard = useRole() === "super_admin";
+  const [arenaPick, setArenaPick] = useState(""); // Backyard Manager: show one arena only
   const [onlyProofs, setOnlyProofs] = useState(false);
   const [reviewAmount, setReviewAmount] = useState(0);
   const [rejectNote, setRejectNote] = useState("");
@@ -84,6 +87,7 @@ export default function BookingsPage() {
   const load = async () => {
     setLoading(true);
     const sp = new URLSearchParams();
+    if (isBackyard) sp.set("all", "1"); // every arena at once
     if (groundId) sp.set("groundId", groundId);
     if (status) sp.set("status", status);
     if (paymentStatus) sp.set("paymentStatus", paymentStatus);
@@ -130,7 +134,20 @@ export default function BookingsPage() {
   };
 
   const proofsWaiting = bookings.filter((b) => b.status === "Pending" && b.proofStatus === "submitted").length;
-  const shown = onlyProofs ? bookings.filter((b) => b.status === "Pending" && b.proofStatus === "submitted") : bookings;
+  // Backyard Manager: how many bookings each arena has (cancelled ones aren't counted)
+  const arenaCounts = new Map<string, { name: string; total: number; pending: number }>();
+  if (isBackyard) {
+    for (const b of bookings) {
+      const a = b.ground?.arena;
+      const key = a?._id || "none";
+      const row = arenaCounts.get(key) || { name: a?.name || "No arena", total: 0, pending: 0 };
+      if (b.status !== "Cancelled" && b.status !== "No Show") row.total++;
+      if (b.status === "Pending") row.pending++;
+      arenaCounts.set(key, row);
+    }
+  }
+  const byArena = isBackyard && arenaPick ? bookings.filter((b) => (b.ground?.arena?._id || "none") === arenaPick) : bookings;
+  const shown = onlyProofs ? byArena.filter((b) => b.status === "Pending" && b.proofStatus === "submitted") : byArena;
   const holdLeft = (b: Booking) => {
     if (b.status !== "Pending" || !b.holdExpiresAt) return "";
     const m = Math.ceil((new Date(b.holdExpiresAt).getTime() - Date.now()) / 60000);
@@ -153,7 +170,23 @@ export default function BookingsPage() {
   return (
     <div className="p-6">
       <h1 className="font-display uppercase text-3xl leading-none mb-1">Bookings</h1>
-      <p className="text-sm text-gray-500 mb-5">Every booking across all grounds — filter, review, and update status or payment.</p>
+      <p className="text-sm text-gray-500 mb-5">{isBackyard ? "Bookings from every arena — pick an arena to see only its bookings." : "Every booking across all grounds — filter, review, and update status or payment."}</p>
+
+      {isBackyard && arenaCounts.size > 0 && (
+        <div className="flex flex-wrap gap-3 mb-5">
+          <button onClick={() => setArenaPick("")} className={`rounded-2xl border px-4 py-3 text-left min-w-[120px] ${arenaPick === "" ? "bg-pitch text-white border-pitch" : "bg-white border-line"}`}>
+            <div className="text-[11px] font-bold uppercase tracking-wider opacity-70">All arenas</div>
+            <div className="font-display text-3xl leading-none mt-1">{Array.from(arenaCounts.values()).reduce((n, r) => n + r.total, 0)}</div>
+          </button>
+          {Array.from(arenaCounts.entries()).map(([id, r]) => (
+            <button key={id} onClick={() => setArenaPick(arenaPick === id ? "" : id)} className={`rounded-2xl border px-4 py-3 text-left min-w-[140px] ${arenaPick === id ? "bg-pitch text-white border-pitch" : "bg-white border-line"}`}>
+              <div className="text-[11px] font-bold uppercase tracking-wider opacity-70 truncate max-w-[180px]">{r.name}</div>
+              <div className="font-display text-3xl leading-none mt-1">{r.total}</div>
+              {r.pending > 0 && <div className={`text-[11px] font-semibold mt-1 ${arenaPick === id ? "text-gold" : "text-[#8a6410]"}`}>{r.pending} pending</div>}
+            </button>
+          ))}
+        </div>
+      )}
 
       {proofsWaiting > 0 && (
         <button onClick={() => setOnlyProofs((v) => !v)} className={`mb-4 w-full sm:w-auto text-left rounded-2xl border px-4 py-3 text-sm font-semibold flex items-center gap-2 ${onlyProofs ? "bg-pitch text-white border-pitch" : "bg-gold/20 border-gold text-pitch"}`}>
@@ -170,14 +203,14 @@ export default function BookingsPage() {
           onKeyDown={(e) => e.key === "Enter" && load()}
           className="rounded-xl px-3.5 py-2.5 text-sm border border-line bg-white outline-none w-56"
         />
-        <select value={groundId} onChange={(e) => setGroundId(e.target.value)} className="rounded-xl px-3.5 py-2.5 text-sm border border-line bg-white outline-none">
+        {!isBackyard && <select value={groundId} onChange={(e) => setGroundId(e.target.value)} className="rounded-xl px-3.5 py-2.5 text-sm border border-line bg-white outline-none">
           <option value="">All grounds</option>
           {grounds.map((g) => (
             <option key={g._id} value={g._id}>
               {g.name} (#{g.groundNumber})
             </option>
           ))}
-        </select>
+        </select>}
         <select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-xl px-3.5 py-2.5 text-sm border border-line bg-white outline-none">
           <option value="">All statuses</option>
           {STATUS_OPTIONS.map((s) => (
@@ -207,6 +240,7 @@ export default function BookingsPage() {
             <thead>
               <tr className="text-left text-gray-500 border-b border-line">
                 <th className="font-medium px-4 py-3">Date / Time</th>
+                {isBackyard && <th className="font-medium px-4 py-3">Arena</th>}
                 <th className="font-medium px-4 py-3">Ground</th>
                 <th className="font-medium px-4 py-3">Customer</th>
                 <th className="font-medium px-4 py-3">Total</th>
@@ -221,6 +255,7 @@ export default function BookingsPage() {
                   <td className="px-4 py-3 whitespace-nowrap">
                     {b.date} <span className="text-gray-400">· {b.startTime}–{b.endTime}</span>
                   </td>
+                  {isBackyard && <td className="px-4 py-3 font-semibold">{b.ground?.arena?.name || "—"}</td>}
                   <td className="px-4 py-3">{b.ground ? `${b.ground.name} (#${b.ground.groundNumber})` : "—"}</td>
                   <td className="px-4 py-3">
                     {b.customer ? (

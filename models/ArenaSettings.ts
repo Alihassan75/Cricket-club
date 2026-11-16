@@ -17,6 +17,14 @@ export interface IArenaSettings {
   advancePaymentPercent: number;
   paymentInstructions?: string; // where customers send money (JazzCash number, bank account…)
   holdMinutes: number; // how long an unpaid booking holds its slot
+  playRegistrationFee: number; // fee for the Saturday 8 AM "Play with us" game
+  tagline?: string; // line under the big heading on the home page
+  announcement?: string; // banner shown at the top of every public page
+  announcementOn?: boolean;
+  announcementLink?: string;
+  commissionPercent: number; // Backyard's share of every booking made through the website
+  arenaMembershipFee: number; // what an arena pays each month to be listed
+  requireArenaMembership: boolean; // hide arenas whose membership isn't paid
   socialLinks: { facebook?: string; instagram?: string; twitter?: string };
   createdAt: Date;
   updatedAt: Date;
@@ -39,6 +47,14 @@ const ArenaSettingsSchema = new Schema<IArenaSettings>(
     advancePaymentPercent: { type: Number, default: 30 },
     paymentInstructions: { type: String },
     holdMinutes: { type: Number, default: 30 },
+    playRegistrationFee: { type: Number, default: 500 },
+    tagline: { type: String },
+    announcement: { type: String },
+    announcementOn: { type: Boolean, default: false },
+    announcementLink: { type: String },
+    commissionPercent: { type: Number, default: 15 },
+    arenaMembershipFee: { type: Number, default: 10000 },
+    requireArenaMembership: { type: Boolean, default: false },
     socialLinks: {
       facebook: { type: String },
       instagram: { type: String },

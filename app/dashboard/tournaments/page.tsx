@@ -46,6 +46,15 @@ export default function TournamentsPage() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const removeTournament = async (t: { _id: string; name: string }) => {
+    if (!confirm(`Delete "${t.name}"? Its team entries will be removed too. This can't be undone.`)) return;
+    const res = await fetch(`/api/tournaments/${t._id}`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return toast(data.error || `Could not delete (${res.status}).`, "error");
+    toast(`"${t.name}" was deleted.`);
+    load();
+  };
+
   const load = async () => {
     setLoading(true);
     const res = await fetch("/api/tournaments");
@@ -150,6 +159,7 @@ export default function TournamentsPage() {
                 <div className="flex flex-wrap gap-2 mt-auto">
                   <button onClick={() => setEntriesFor(t)} className="rounded-lg px-4 py-2 text-sm font-semibold text-white bg-green">Team entries ({t.entryCount ?? 0})</button>
                   <button onClick={() => setEditing(t)} className="rounded-lg px-4 py-2 text-sm font-semibold border border-line bg-white hover:border-green">Edit</button>
+                  <button onClick={() => removeTournament(t)} className="rounded-lg px-4 py-2 text-sm font-semibold text-red-600 border border-red-200 bg-white hover:bg-red-50">Delete</button>
                   <Link href={`/dashboard/tournaments/${t._id}`} className="rounded-lg px-4 py-2 text-sm font-semibold text-gray-500 hover:text-green">Open →</Link>
                 </div>
               </div>

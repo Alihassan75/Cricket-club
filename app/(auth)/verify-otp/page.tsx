@@ -5,7 +5,6 @@ import AuthShell from "@/components/AuthShell";
 import OtpInput from "@/components/OtpInput";
 
 function VerifyOtpForm() {
-  const router = useRouter();
   const params = useSearchParams();
   const email = params.get("email") || "";
   const [otp, setOtp] = useState("");
@@ -35,7 +34,7 @@ function VerifyOtpForm() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Verification failed.");
-      router.push(data.user?.role === "customer" ? "/portal" : "/dashboard");
+      window.location.assign(data.user?.role === "customer" ? "/portal" : "/dashboard");
     } catch (err: any) {
       setError(err.message);
     } finally {

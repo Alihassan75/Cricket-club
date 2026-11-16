@@ -9,6 +9,7 @@ type Ground = {
   weekendPricePerHour?: number; peakHourPricePerHour?: number; facilities: string[]; status: string;
   openingTime?: string; closingTime?: string; images?: string[];
   customSlots?: { label?: string; start: string; end: string; price: number }[];
+  arena?: { _id: string; name: string; slug: string } | null;
 };
 
 const HUES = ["from-[#143A2A] to-[#0E2A1F]", "from-[#C8372D] to-[#6d1a14]", "from-[#2b3a55] to-[#0f1626]", "from-[#E0B04C] to-[#9a7424]"];
@@ -19,14 +20,20 @@ export default function PortalGroundsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [surface, setSurface] = useState("All");
+  const [arenas, setArenas] = useState<{ _id: string; name: string }[]>([]);
+  const [arena, setArena] = useState("");
 
   useEffect(() => {
     (async () => {
       try {
+        const wanted = new URLSearchParams(window.location.search).get("arena") || "";
+        if (wanted) setArena(wanted);
         const res = await fetch("/api/portal/grounds");
         const text = await res.text();
         if (!res.ok) throw new Error(`Grounds API failed (${res.status}): ${text}`);
-        setGrounds((text ? JSON.parse(text) : {}).grounds || []);
+        const parsed = text ? JSON.parse(text) : {};
+        setGrounds(parsed.grounds || []);
+        setArenas(parsed.arenas || []);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load grounds.");
       } finally {
@@ -36,13 +43,22 @@ export default function PortalGroundsPage() {
   }, []);
 
   const surfaces = ["All", ...Array.from(new Set(grounds.map((g) => g.surface).filter(Boolean)))];
-  const shown = surface === "All" ? grounds : grounds.filter((g) => g.surface === surface);
+  const byArena = arena ? grounds.filter((g) => g.arena?._id === arena) : grounds;
+  const shown = surface === "All" ? byArena : byArena.filter((g) => g.surface === surface);
 
   return (
     <div>
       <h1 className="font-display uppercase text-3xl leading-none">Pick your ground</h1>
       <p className="text-sm text-gray-500 mt-1 mb-5">Choose a ground, see open slots and book in a few taps.</p>
 
+      {arenas.length > 1 && (
+        <div className="flex gap-2 mb-3 flex-wrap items-center">
+          <span className="text-xs font-semibold text-gray-500">Arena:</span>
+          {[{ _id: "", name: "All arenas" }, ...arenas].map((a) => (
+            <button key={a._id} onClick={() => setArena(a._id)} className={`px-4 py-1.5 rounded-full text-sm font-semibold border ${arena === a._id ? "bg-ball text-white border-ball" : "bg-white border-line text-gray-600"}`}>{a.name}</button>
+          ))}
+        </div>
+      )}
       {surfaces.length > 2 && (
         <div className="flex gap-2 mb-5 flex-wrap">
           {surfaces.map((s) => (
@@ -75,7 +91,8 @@ export default function PortalGroundsPage() {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                     <div className="relative">
                       <span className="text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-white/90 text-pitch capitalize">{g.surface}</span>
-                      <div className="font-display uppercase text-4xl leading-none mt-3">{g.name}</div>
+                      {g.arena && arenas.length > 1 && <div className="text-xs font-semibold text-white/80 mt-3">{g.arena.name}</div>}
+                      <div className="font-display uppercase text-4xl leading-none mt-1">{g.name}</div>
                       <div className="flex flex-wrap gap-1.5 mt-3">{g.facilities?.slice(0, 5).map((f) => <span key={f} className="text-[11px] px-2.5 py-1 rounded-full bg-white/15">{f}</span>)}</div>
                     </div>
                     <div className="relative text-right text-sm text-white/80">{sl.length} sessions every day<br /><span className="text-white/60 text-xs">Tap a slot to book it</span></div>

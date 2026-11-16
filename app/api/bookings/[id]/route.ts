@@ -3,6 +3,7 @@ import { z } from "zod";
 import { connectDB } from "@/lib/mongodb";
 import Booking from "@/models/Booking";
 import { requireStaff } from "@/lib/guard";
+import { bookingGuard } from "@/lib/arenaScope";
 import { recalculateCustomerStats } from "@/lib/customers";
 import { notify } from "@/lib/notifications";
 import Customer from "@/models/Customer";
@@ -20,6 +21,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const guard = requireStaff();
   if ("error" in guard) return guard.error;
 
+  const denied = await bookingGuard(guard.auth, params.id);
+  if (denied) return denied;
   await connectDB();
   const booking = await Booking.findById(params.id).populate("ground", "name groundNumber");
   if (!booking) return NextResponse.json({ error: "Booking not found." }, { status: 404 });
@@ -35,6 +38,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: zodMessage(parsed.error) || "Invalid update." }, { status: 400 });
   }
 
+  const denied = await bookingGuard(guard.auth, params.id);
+  if (denied) return denied;
   await connectDB();
   const booking = await Booking.findById(params.id);
   if (!booking) return NextResponse.json({ error: "Booking not found." }, { status: 404 });

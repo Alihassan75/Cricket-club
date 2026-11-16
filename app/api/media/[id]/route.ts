@@ -5,6 +5,7 @@ import path from "path";
 import { connectDB } from "@/lib/mongodb";
 import Media from "@/models/Media";
 import { requireStaff } from "@/lib/guard";
+import { getScope, inScope, outOfScope } from "@/lib/arenaScope";
 
 const patchSchema = z.object({
   title: z.string().max(120).optional(),
@@ -20,6 +21,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (!parsed.success) return NextResponse.json({ error: "Invalid update." }, { status: 400 });
 
   await connectDB();
+  const own = await Media.findById(params.id).select("arena");
+  if (own && !inScope(await getScope(guard.auth), own.arena)) return outOfScope("That item");
   const media = await Media.findByIdAndUpdate(params.id, parsed.data, { new: true });
   if (!media) return NextResponse.json({ error: "Not found." }, { status: 404 });
   return NextResponse.json({ media });
@@ -30,6 +33,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   if ("error" in guard) return guard.error;
 
   await connectDB();
+  const own = await Media.findById(params.id).select("arena");
+  if (own && !inScope(await getScope(guard.auth), own.arena)) return outOfScope("That item");
   const media = await Media.findByIdAndDelete(params.id);
   if (!media) return NextResponse.json({ error: "Not found." }, { status: 404 });
 

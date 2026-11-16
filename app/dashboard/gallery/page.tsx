@@ -71,7 +71,7 @@ export default function GalleryPage() {
   };
 
   const load = async () => {
-    const res = await fetch("/api/media");
+    const res = await fetch("/api/media?scope=1");
     const data = await res.json().catch(() => ({}));
     setItems(data.media || []);
     setLoading(false);

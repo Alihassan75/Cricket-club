@@ -1,4 +1,6 @@
 import Ground from "@/models/Ground";
+import Arena from "@/models/Arena";
+import { ensureDefaultArena } from "@/lib/arenas";
 
 export const INDOOR_NAME = "Indoor Cricket";
 
@@ -31,7 +33,9 @@ export async function ensureDefaultGround() {
     const bookable = await Ground.countDocuments({ status: { $ne: "disabled" } });
     if (bookable > 0) return;
     if (await Ground.exists({ name: INDOOR_NAME })) return;
-    await Ground.updateOne({ name: INDOOR_NAME }, { $setOnInsert: INDOOR_GROUND }, { upsert: true });
+    await ensureDefaultArena();
+    const first: any = await Arena.findOne().sort({ createdAt: 1 }).select("_id").lean();
+    await Ground.updateOne({ name: INDOOR_NAME }, { $setOnInsert: { ...INDOOR_GROUND, ...(first ? { arena: first._id } : {}) } }, { upsert: true });
   } catch (e) {
     console.error("ensureDefaultGround failed:", e);
   }

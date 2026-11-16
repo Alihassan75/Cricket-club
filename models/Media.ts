@@ -4,6 +4,7 @@ export const ALBUMS = ["Matches", "Tournaments", "Practice", "Events", "Ground",
 
 export interface IMedia {
   _id: string;
+  arena?: Types.ObjectId;
   type: "image" | "video";
   source: "upload" | "youtube";
   url: string; // file URL, or YouTube watch URL
@@ -20,6 +21,7 @@ export interface IMedia {
 
 const MediaSchema = new Schema<IMedia>(
   {
+    arena: { type: Schema.Types.ObjectId, ref: "Arena", index: true },
     type: { type: String, enum: ["image", "video"], required: true },
     source: { type: String, enum: ["upload", "youtube"], default: "upload" },
     url: { type: String, required: true },

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { connectDB } from "@/lib/mongodb";
 import Match from "@/models/Match";
 import { requireStaff } from "@/lib/guard";
+import { matchGuard } from "@/lib/arenaScope";
 import { applyMatchResult } from "@/lib/matchStats";
 import { zodMessage } from "@/lib/validation";
 
@@ -27,6 +28,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const guard = requireStaff();
   if ("error" in guard) return guard.error;
 
+  const denied = await matchGuard(guard.auth, params.id);
+  if (denied) return denied;
   await connectDB();
   const match = await Match.findById(params.id)
     .populate("teamA", "name logoUrl")
@@ -46,6 +49,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: zodMessage(parsed.error) || "Invalid update." }, { status: 400 });
   }
 
+  const denied = await matchGuard(guard.auth, params.id);
+  if (denied) return denied;
   await connectDB();
   const match = await Match.findById(params.id);
   if (!match) return NextResponse.json({ error: "Match not found." }, { status: 404 });

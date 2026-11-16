@@ -41,6 +41,17 @@ export function EditTournamentModal({ tournament, onClose, onSaved }: { tourname
     rules: tournament.rules || "", coverImage: tournament.coverImage || "",
   });
   const [bad, setBad] = useState("");
+  const removeTournament = async () => {
+    if (!confirm(`Delete "${tournament.name}"? Its team entries will be removed too. This can't be undone.`)) return;
+    setSaving(true);
+    const res = await fetch(`/api/tournaments/${tournament._id}`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+    setSaving(false);
+    if (!res.ok) return toast(data.error || `Could not delete (${res.status}).`, "error");
+    toast(`"${tournament.name}" was deleted.`);
+    onSaved();
+    onClose();
+  };
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const taken = tournament.teamsTaken ?? tournament.registeredTeams?.length ?? 0;
@@ -102,7 +113,8 @@ export function EditTournamentModal({ tournament, onClose, onSaved }: { tourname
           <input value={f.coverImage} onChange={(e) => setF({ ...f, coverImage: e.target.value })} placeholder="https://… or /demo/tournament-cover-1.svg" className={cls("coverImage")} />
         </label>
       </div>
-      <div className="flex justify-end gap-2 mt-5">
+      <div className="flex flex-wrap items-center justify-end gap-2 mt-5">
+        <button onClick={removeTournament} disabled={saving} className="mr-auto px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-60">Delete tournament</button>
         <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-gray-500">Cancel</button>
         <button onClick={save} disabled={saving} className="px-5 py-2 text-sm font-semibold text-white bg-green rounded-lg disabled:opacity-60">{saving ? "Saving…" : "Save changes"}</button>
       </div>

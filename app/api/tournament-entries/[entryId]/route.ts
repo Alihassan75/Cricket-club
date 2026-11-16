@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/mongodb";
 import Tournament from "@/models/Tournament";
 import TournamentEntry, { ACTIVE_ENTRY_STATUSES } from "@/models/TournamentEntry";
 import { requireStaff } from "@/lib/guard";
+import { tournamentGuard } from "@/lib/arenaScope";
 import { zodMessage } from "@/lib/validation";
 import { notify } from "@/lib/notifications";
 
@@ -26,6 +27,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { entryId: s
     await connectDB();
     const entry = await TournamentEntry.findById(params.entryId);
     if (!entry) return NextResponse.json({ error: "Entry not found." }, { status: 404 });
+    const denied = await tournamentGuard(guard.auth, String(entry.tournament));
+    if (denied) return denied;
     const before = entry.status;
     const { status, adminNote, feePaid } = parsed.data;
 
@@ -64,6 +67,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: { entryId:
   if ("error" in guard) return guard.error;
   if (!mongoose.isValidObjectId(params.entryId)) return NextResponse.json({ error: "Entry not found." }, { status: 404 });
   await connectDB();
+  const entry = await TournamentEntry.findById(params.entryId).select("tournament");
+  if (!entry) return NextResponse.json({ error: "Entry not found." }, { status: 404 });
+  const denied = await tournamentGuard(guard.auth, String(entry.tournament));
+  if (denied) return denied;
   await TournamentEntry.deleteOne({ _id: params.entryId });
   return NextResponse.json({ ok: true });
 }

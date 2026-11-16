@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import Team from "@/models/Team";
 import Player from "@/models/Player";
 import { requireStaff } from "@/lib/guard";
+import { teamGuard } from "@/lib/arenaScope";
 import { zodMessage } from "@/lib/validation";
 
 const updateSchema = z.object({
@@ -18,6 +19,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const guard = requireStaff();
   if ("error" in guard) return guard.error;
 
+  const denied = await teamGuard(guard.auth, params.id);
+  if (denied) return denied;
   await connectDB();
   const team = await Team.findById(params.id);
   if (!team) return NextResponse.json({ error: "Team not found." }, { status: 404 });
@@ -34,6 +37,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: zodMessage(parsed.error) || "Invalid update." }, { status: 400 });
   }
 
+  const denied = await teamGuard(guard.auth, params.id);
+  if (denied) return denied;
   await connectDB();
   const team = await Team.findByIdAndUpdate(params.id, parsed.data, { new: true });
   if (!team) return NextResponse.json({ error: "Team not found." }, { status: 404 });
@@ -44,6 +49,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   const guard = requireStaff();
   if ("error" in guard) return guard.error;
 
+  const denied = await teamGuard(guard.auth, params.id);
+  if (denied) return denied;
   await connectDB();
   await Player.deleteMany({ team: params.id });
   const team = await Team.findByIdAndDelete(params.id);

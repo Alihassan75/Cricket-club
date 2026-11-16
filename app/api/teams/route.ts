@@ -3,6 +3,7 @@ import { z } from "zod";
 import { connectDB } from "@/lib/mongodb";
 import Team from "@/models/Team";
 import { requireStaff } from "@/lib/guard";
+import { getScope, teamIdsOf, arenaForCreate } from "@/lib/arenaScope";
 import { zodMessage } from "@/lib/validation";
 
 const createSchema = z.object({
@@ -18,7 +19,8 @@ export async function GET() {
   if ("error" in guard) return guard.error;
 
   await connectDB();
-  const teams = await Team.find().sort({ name: 1 });
+  const ids = await teamIdsOf(await getScope(guard.auth));
+  const teams = await Team.find(ids === null ? {} : { _id: { $in: ids } }).sort({ name: 1 });
   return NextResponse.json({ teams });
 }
 
@@ -37,6 +39,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "A team with this name already exists." }, { status: 409 });
   }
 
-  const team = await Team.create(parsed.data);
+  // a team added by an arena belongs to that arena; the Backyard Manager (viewing all arenas) adds it for everyone
+  const scope = await getScope(guard.auth);
+  let arenas: string[] = [];
+  if (!scope.all) {
+    const target = arenaForCreate(scope);
+    if ("error" in target) return target.error;
+    arenas = [target.arenaId];
+  }
+  const team = await Team.create({ ...parsed.data, arenas });
   return NextResponse.json({ team }, { status: 201 });
 }

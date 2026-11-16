@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { connectDB } from "@/lib/mongodb";
 import ArenaSettings from "@/models/ArenaSettings";
-import { requireStaff } from "@/lib/guard";
+import { requireStaff, requireSuperAdminLive } from "@/lib/guard";
 
 const updateSchema = z.object({
   arenaName: z.string().min(2).optional(),
@@ -19,6 +19,14 @@ const updateSchema = z.object({
   cancellationPolicy: z.string().optional(),
   advancePaymentPercent: z.number().min(0).max(100).optional(),
   paymentInstructions: z.string().max(600).optional(),
+  playRegistrationFee: z.number().min(0, "The registration fee can't be negative.").max(1_000_000).optional(),
+  tagline: z.string().max(200).optional(),
+  announcement: z.string().max(300).optional(),
+  announcementOn: z.boolean().optional(),
+  announcementLink: z.string().max(300).optional(),
+  commissionPercent: z.number().min(0, "Commission can't be negative.").max(100, "Commission can't be more than 100%.").optional(),
+  arenaMembershipFee: z.number().min(0).max(10_000_000).optional(),
+  requireArenaMembership: z.boolean().optional(),
   holdMinutes: z.number().int().min(5, "Hold time must be at least 5 minutes.").max(1440).optional(),
   socialLinks: z
     .object({
@@ -45,7 +53,7 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
-  const guard = requireStaff();
+  const guard = await requireSuperAdminLive();
   if ("error" in guard) return guard.error;
 
   const parsed = updateSchema.safeParse(await req.json());

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { connectDB } from "@/lib/mongodb";
 import Tournament from "@/models/Tournament";
 import { requireStaff } from "@/lib/guard";
+import { getScope, arenaFilter, arenaForCreate, inScope, outOfScope } from "@/lib/arenaScope";
 import { zodMessage } from "@/lib/validation";
 import { attachEntryCounts } from "@/lib/tournamentEntries";
 
@@ -23,7 +24,8 @@ export async function GET() {
   if ("error" in guard) return guard.error;
 
   await connectDB();
-  const docs = await Tournament.find().populate("registeredTeams", "name logoUrl").sort({ startDate: -1 });
+  const scope = await getScope(guard.auth);
+  const docs = await Tournament.find(arenaFilter(scope)).populate("registeredTeams", "name logoUrl").sort({ startDate: -1 });
   const tournaments = await attachEntryCounts(JSON.parse(JSON.stringify(docs)));
   return NextResponse.json({ tournaments });
 }
@@ -42,6 +44,8 @@ export async function POST(req: NextRequest) {
   }
 
   await connectDB();
-  const tournament = await Tournament.create(parsed.data);
+  const target = arenaForCreate(await getScope(guard.auth));
+  if ("error" in target) return target.error;
+  const tournament = await Tournament.create({ ...parsed.data, arena: target.arenaId });
   return NextResponse.json({ tournament }, { status: 201 });
 }

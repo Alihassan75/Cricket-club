@@ -3,6 +3,7 @@ import { z } from "zod";
 import { connectDB } from "@/lib/mongodb";
 import Tournament from "@/models/Tournament";
 import { requireStaff } from "@/lib/guard";
+import { tournamentGuard } from "@/lib/arenaScope";
 import type { Types } from "mongoose";
 
 const schema = z.object({ teamId: z.string() });
@@ -15,6 +16,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!parsed.success) {
     return NextResponse.json({ error: "A team must be selected." }, { status: 400 });
   }
+  const denied = await tournamentGuard(guard.auth, params.id);
+  if (denied) return denied;
 
   await connectDB();
   const tournament = await Tournament.findById(params.id);
@@ -40,6 +43,8 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
   const teamId = req.nextUrl.searchParams.get("teamId");
   if (!teamId) return NextResponse.json({ error: "teamId is required." }, { status: 400 });
+  const denied = await tournamentGuard(guard.auth, params.id);
+  if (denied) return denied;
 
   await connectDB();
   const tournament = await Tournament.findById(params.id);

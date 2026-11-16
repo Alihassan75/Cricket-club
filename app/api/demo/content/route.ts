@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
-import { requireStaff } from "@/lib/guard";
+import { requireSuperAdminLive } from "@/lib/guard";
 import Media from "@/models/Media";
 import Ground from "@/models/Ground";
 import Tournament from "@/models/Tournament";
+import Arena from "@/models/Arena";
+import { getScope } from "@/lib/arenaScope";
+import { ensureDefaultArena } from "@/lib/arenas";
 
 // Sample pictures live in /public/demo (illustrations, not real photos).
 const ALBUMS: Record<string, { file: string; title: string }[]> = {
@@ -47,11 +50,14 @@ const ALBUMS: Record<string, { file: string; title: string }[]> = {
 
 /** Adds sample gallery pictures (all 6 albums), ground photos and tournament covers. Safe to press twice. */
 export async function POST() {
-  const guard = requireStaff();
+  const guard = await requireSuperAdminLive();
   if ("error" in guard) return guard.error;
   try {
     await connectDB();
-    const tournaments = await Tournament.find().sort({ startDate: 1 });
+    await ensureDefaultArena();
+    const scope = await getScope(guard.auth);
+    const arenaId = scope.arenaId || String(((await Arena.findOne().sort({ createdAt: 1 }).select("_id").lean()) as any)?._id || "") || undefined;
+    const tournaments = await Tournament.find(arenaId ? { arena: arenaId } : {}).sort({ startDate: 1 });
 
     let added = 0;
     if ((await Media.countDocuments({ isDemo: true })) === 0) {
@@ -59,7 +65,7 @@ export async function POST() {
       Object.entries(ALBUMS).forEach(([album, items]) =>
         items.forEach((it, i) =>
           docs.push({
-            type: "image", source: "upload", url: `/demo/${it.file}.svg`, title: it.title, album,
+            arena: arenaId, type: "image", source: "upload", url: `/demo/${it.file}.svg`, title: it.title, album,
             featured: i === 0, isDemo: true,
             tournament: album === "Tournaments" && tournaments.length ? tournaments[i % tournaments.length]._id : undefined,
           })
@@ -93,7 +99,7 @@ export async function POST() {
 
 /** Removes everything the button above added (your own uploads are never touched). */
 export async function DELETE() {
-  const guard = requireStaff();
+  const guard = await requireSuperAdminLive();
   if ("error" in guard) return guard.error;
   try {
     await connectDB();

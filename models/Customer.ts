@@ -5,6 +5,7 @@ export type MembershipStatus = "none" | "active" | "expired";
 export interface ICustomer {
   _id: string;
   user?: Types.ObjectId; // linked portal login, if this customer has one
+  arenas?: Types.ObjectId[]; // arenas that added this customer by hand (bookings also link a customer to an arena)
   fullName: string;
   profileImage?: string;
   phone: string;
@@ -23,6 +24,7 @@ export interface ICustomer {
 const CustomerSchema = new Schema<ICustomer>(
   {
     user: { type: Schema.Types.ObjectId, ref: "User" },
+    arenas: { type: [Schema.Types.ObjectId], ref: "Arena", default: [] },
     fullName: { type: String, required: true, trim: true },
     profileImage: { type: String },
     phone: { type: String, required: true, unique: true, trim: true },

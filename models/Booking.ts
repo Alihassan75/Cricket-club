@@ -39,6 +39,7 @@ export interface IBooking {
   cancelReason?: string;
   refundedAmount?: number; // money returned to the customer (kept for records)
   createdBy?: Types.ObjectId;
+  source?: "website" | "staff"; // website = the customer booked online (Backyard earns its commission on these)
   createdAt: Date;
   updatedAt: Date;
 }
@@ -80,6 +81,7 @@ const BookingSchema = new Schema<IBooking>(
     cancelReason: { type: String },
     refundedAmount: { type: Number, default: 0 },
     createdBy: { type: Schema.Types.ObjectId, ref: "User" },
+    source: { type: String, enum: ["website", "staff"] },
   },
   { timestamps: true }
 );

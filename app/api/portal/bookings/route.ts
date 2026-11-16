@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import mongoose from "mongoose";
 import { connectDB } from "@/lib/mongodb";
 import Ground from "@/models/Ground";
+import Arena from "@/models/Arena";
+import { listedArenaQuery } from "@/lib/arenaListing";
 import Booking, { ACTIVE_BOOKING_STATUSES } from "@/models/Booking";
 import { calculateBookingPrice } from "@/lib/pricing";
 import { violatesFixedSlots } from "@/lib/groundSlots";
@@ -64,7 +67,7 @@ export async function POST(req: NextRequest) {
   const rl = rateLimit(`book:${guard.auth.userId}`, 10, 60_000);
   if (!rl.ok) return NextResponse.json({ error: "You are booking too fast — wait a moment and try again." }, { status: 429 });
 
-  const parsed = createSchema.safeParse(await req.json());
+  const parsed = createSchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) {
     return NextResponse.json({ error: zodMessage(parsed.error) || "Invalid booking data." }, { status: 400 });
   }
@@ -72,12 +75,23 @@ export async function POST(req: NextRequest) {
   if (startTime >= endTime) {
     return NextResponse.json({ error: "End time must be after start time." }, { status: 400 });
   }
+  if (!mongoose.isValidObjectId(groundId)) return NextResponse.json({ error: "Ground not found." }, { status: 404 });
+  // No bookings in the past (club time, Pakistan)
+  const nowPk = new Date();
+  const todayPk = nowPk.toLocaleDateString("en-CA", { timeZone: "Asia/Karachi" });
+  const timePk = nowPk.toLocaleTimeString("en-GB", { timeZone: "Asia/Karachi", hour: "2-digit", minute: "2-digit", hour12: false });
+  if (date < todayPk || (date === todayPk && endTime <= timePk)) {
+    return NextResponse.json({ error: "That time has already passed — please pick a later slot." }, { status: 400 });
+  }
 
   await connectDB();
   await releaseExpiredHolds(true); // expired holds must not block this booking
   const customer = await getOrCreatePortalCustomer(guard.auth.userId);
 
   const ground = await Ground.findById(groundId);
+  if (ground && !(await Arena.exists({ _id: ground.arena, ...(await listedArenaQuery()) }))) {
+    return NextResponse.json({ error: "This arena is not taking online bookings right now." }, { status: 403 });
+  }
   if (!ground) return NextResponse.json({ error: "Ground not found." }, { status: 404 });
   if (ground.status !== "active") {
     return NextResponse.json({ error: `${ground.name} isn't available for booking right now.` }, { status: 409 });
@@ -134,6 +148,7 @@ export async function POST(req: NextRequest) {
     paymentStatus: "Pending",
     status: "Pending", // self-service bookings await staff/payment confirmation
     holdExpiresAt: new Date(Date.now() + (await getHoldMinutes()) * 60_000), // released if unpaid by then
+    source: "website",
     createdBy: guard.auth.userId,
   });
 

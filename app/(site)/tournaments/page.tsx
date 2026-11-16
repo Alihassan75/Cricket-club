@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { connectDB } from "@/lib/mongodb";
+import { listedArenaIds } from "@/lib/arenaListing";
 import Tournament from "@/models/Tournament";
 import { getSiteSettings, plain } from "@/lib/site";
 import { attachEntryCounts } from "@/lib/tournamentEntries";
@@ -10,7 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function TournamentsPage() {
   const settings = await getSiteSettings();
   await connectDB();
-  const ts = await attachEntryCounts(plain<any[]>(await Tournament.find().sort({ startDate: -1 })));
+  const ts = await attachEntryCounts(plain<any[]>(await Tournament.find({ arena: { $in: await listedArenaIds() } }).sort({ startDate: -1 })));
   const open = ts.filter((t) => t.status !== "Completed");
   const done = ts.filter((t) => t.status === "Completed");
 

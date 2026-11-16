@@ -3,6 +3,7 @@ import { z } from "zod";
 import { connectDB } from "@/lib/mongodb";
 import Match from "@/models/Match";
 import { requireStaff } from "@/lib/guard";
+import { getScope, groundRefFilter, inScope, outOfScope } from "@/lib/arenaScope";
 import { notify } from "@/lib/notifications";
 import { zodMessage } from "@/lib/validation";
 import mongoose from "mongoose";
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
 
   await connectDB();
   const sp = req.nextUrl.searchParams;
-  const filter: Record<string, unknown> = {};
+  const filter: Record<string, unknown> = { ...(await groundRefFilter(await getScope(guard.auth))) };
   if (sp.get("status")) filter.status = sp.get("status");
   if (sp.get("tournamentId")) filter.tournament = sp.get("tournamentId");
   if (sp.get("teamId")) filter.$or = [{ teamA: sp.get("teamId") }, { teamB: sp.get("teamId") }];
@@ -68,6 +69,7 @@ export async function POST(req: NextRequest) {
     if (!a) return NextResponse.json({ error: "Team A no longer exists." }, { status: 404 });
     if (!b) return NextResponse.json({ error: "Team B no longer exists." }, { status: 404 });
     if (!g) return NextResponse.json({ error: "That ground no longer exists." }, { status: 404 });
+    if (!inScope(await getScope(guard.auth), (g as any).arena)) return outOfScope("That ground");
 
     const match = await Match.create(data);
     if (data.tournament) {

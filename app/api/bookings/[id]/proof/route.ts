@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import Booking from "@/models/Booking";
 import Customer from "@/models/Customer";
 import { requireStaff } from "@/lib/guard";
+import { bookingGuard } from "@/lib/arenaScope";
 import { recalculateCustomerStats } from "@/lib/customers";
 import { notify } from "@/lib/notifications";
 import { getHoldMinutes } from "@/lib/holds";
@@ -23,6 +24,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (!parsed.success) return NextResponse.json({ error: zodMessage(parsed.error) }, { status: 400 });
   const { action, note, amountPaid } = parsed.data;
 
+  const denied = await bookingGuard(guard.auth, params.id);
+  if (denied) return denied;
   try {
     await connectDB();
     const booking = await Booking.findById(params.id);

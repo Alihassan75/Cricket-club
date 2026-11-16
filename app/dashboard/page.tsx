@@ -4,14 +4,16 @@ import Link from "next/link";
 import { RefreshCw, CalendarPlus, ImagePlus, Trophy, Users, Check, X, ArrowUpRight, Clock } from "lucide-react";
 import CountUp from "@/components/CountUp";
 import { useToast } from "@/components/Toast";
+import { useRole } from "@/components/RoleContext";
+import BackyardSummary from "@/components/BackyardSummary";
 
 type B = {
   _id: string; customerName: string; phone: string; date: string; startTime: string; endTime: string;
   total: number; status: string; paymentStatus: string; proofStatus?: string; ground?: { name: string };
 };
 type Data = {
-  currency: string; today: string;
-  stats: { todayCount: number; pending: number; proofs?: number; monthRevenue: number; monthRefunded?: number; monthBookings: number };
+  arenaName?: string; currency: string; today: string;
+  stats: { todayCount: number; newInquiries?: number; pending: number; proofs?: number; monthRevenue: number; monthRefunded?: number; monthBookings: number };
   counts: { customers: number; teams: number; media: number };
   last7: { date: string; label: string; bookings: number; revenue: number; refunded?: number }[];
   todayList: B[]; pendingList: B[];
@@ -20,6 +22,7 @@ type Data = {
 
 export default function DashboardPage() {
   const toast = useToast();
+  const isBackyard = useRole() === "super_admin";
   const [data, setData] = useState<Data | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [metric, setMetric] = useState<"bookings" | "revenue">("bookings");
@@ -70,13 +73,15 @@ export default function DashboardPage() {
   }
 
   const cur = data.currency;
+  // Calendar / Teams belong to each arena's manager; the Backyard Manager is redirected away from them.
+  const calendarHref = isBackyard ? "/dashboard/bookings" : "/dashboard/calendar";
   const max = Math.max(1, ...data.last7.map((d) => d[metric]));
   const weekBookings = data.last7.reduce((t, d) => t + d.bookings, 0);
   const weekRevenue = data.last7.reduce((t, d) => t + d.revenue, 0);
   const weekRefunded = data.last7.reduce((t, d) => t + (d.refunded ?? 0), 0);
   const compact = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k` : String(n));
   const cards = [
-    { label: "Today's bookings", value: data.stats.todayCount, href: "/dashboard/calendar", tone: "bg-pitch text-white", sub: "on the calendar" },
+    { label: "Today's bookings", value: data.stats.todayCount, href: calendarHref, tone: "bg-pitch text-white", sub: "on the calendar" },
     { label: "Awaiting approval", value: data.stats.pending, href: "/dashboard/bookings", tone: data.stats.pending > 0 ? "bg-ball text-white pulse-ring" : "bg-white", sub: data.stats.pending > 0 ? ((data.stats.proofs ?? 0) > 0 ? `📎 ${data.stats.proofs} with payment screenshot` : "tap to review") : "all caught up" },
     { label: "Revenue this month", value: data.stats.monthRevenue, prefix: `${cur} `, href: "/dashboard/payments", tone: "bg-gold text-pitch", sub: (data.stats.monthRefunded ?? 0) > 0 ? `received · ${cur} ${data.stats.monthRefunded!.toLocaleString()} refunded` : "money received, refunds removed" },
     { label: "Bookings this month", value: data.stats.monthBookings, href: "/dashboard/bookings", tone: "bg-white", sub: "excluding cancelled" },
@@ -87,12 +92,23 @@ export default function DashboardPage() {
       <div className="flex items-end justify-between mb-5">
         <div>
           <h1 className="font-display uppercase text-3xl leading-none">{greeting} 👋</h1>
-          <p className="text-sm text-gray-500 mt-1">Here's what's happening at the ground today.</p>
+          <p className="text-sm text-gray-500 mt-1">
+            {data.arenaName ? <>Here's what's happening at <b className="text-pitch">{data.arenaName}</b> today.</> : "Here's what's happening across all arenas today."}
+          </p>
         </div>
         <button onClick={() => load(true)} className="flex items-center gap-2 text-xs font-semibold bg-white border border-line rounded-full px-4 py-2 hover:shadow-md">
           <RefreshCw size={13} className={refreshing ? "animate-spin" : ""} /> Refresh
         </button>
       </div>
+
+      {(data.stats.newInquiries ?? 0) > 0 && (
+        <Link href="/dashboard/inquiries" className="hover-lift mb-4 flex items-center gap-3 rounded-2xl bg-ball text-white px-5 py-3.5 text-sm font-semibold">
+          📩 {data.stats.newInquiries} new play request{data.stats.newInquiries! > 1 ? "s" : ""} waiting — people want to play with you
+          <span className="ml-auto underline underline-offset-4">Open inbox →</span>
+        </Link>
+      )}
+
+      {isBackyard && <BackyardSummary />}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
         {cards.map((c) => (
@@ -153,7 +169,7 @@ export default function DashboardPage() {
               { href: "/dashboard/bookings", label: "New booking", icon: CalendarPlus },
               { href: "/dashboard/gallery", label: "Upload photos", icon: ImagePlus },
               { href: "/dashboard/tournaments", label: "Tournament", icon: Trophy },
-              { href: "/dashboard/teams", label: "Add team", icon: Users },
+              isBackyard ? { href: "/dashboard/arenas", label: "Arenas", icon: Users } : { href: "/dashboard/teams", label: "Add team", icon: Users },
             ].map((a) => (
               <Link key={a.label} href={a.href} className="hover-lift flex flex-col items-center gap-2 text-center border border-line rounded-xl py-4 text-xs font-semibold bg-cream">
                 <a.icon size={20} className="text-ball" /> {a.label}
@@ -195,7 +211,7 @@ export default function DashboardPage() {
         <div className="bg-white border border-line rounded-2xl p-5">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-display uppercase text-xl">Today's schedule</h2>
-            <Link href="/dashboard/calendar" className="text-xs font-semibold text-ball">Calendar →</Link>
+            <Link href={calendarHref} className="text-xs font-semibold text-ball">{isBackyard ? "Bookings →" : "Calendar →"}</Link>
           </div>
           {data.todayList.length === 0 ? (
             <p className="text-sm text-gray-500 py-6 text-center">No bookings today — a quiet day at the ground.</p>

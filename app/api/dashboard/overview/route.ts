@@ -11,6 +11,9 @@ import ArenaSettings from "@/models/ArenaSettings";
 import { releaseExpiredHolds } from "@/lib/holds";
 import { netRevenue, refundedOf } from "@/lib/revenue";
 import { attachEntryCounts } from "@/lib/tournamentEntries";
+import Inquiry from "@/models/Inquiry";
+import Arena from "@/models/Arena";
+import { getScope, arenaFilter, groundRefFilter, customerIdsOf } from "@/lib/arenaScope";
 
 const TZ = "Asia/Karachi";
 const ymd = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: TZ });
@@ -21,6 +24,11 @@ export async function GET() {
   await connectDB();
   await releaseExpiredHolds();
   void Ground; // register model for populate
+  const scope = await getScope(guard.auth);
+  const byGround = await groundRefFilter(scope); // bookings of this arena only
+  const byArena = arenaFilter(scope);
+  const myCustomers = await customerIdsOf(scope);
+  const myTeams = scope.all ? null : await Tournament.find(byArena).distinct("registeredTeams");
 
   const now = new Date();
   const today = ymd(now);
@@ -32,14 +40,14 @@ export async function GET() {
 
   const [weekBookings, monthBookings, todayList, pendingList, tournaments, customers, teams, media, settings] = await Promise.all([
     // every status: a cancelled booking can still hold money (or have been refunded)
-    Booking.find({ date: { $in: days } }).select("date status advancePayment paymentStatus refundedAmount"),
-    Booking.find({ date: { $regex: `^${monthPrefix}` } }).select("status advancePayment paymentStatus refundedAmount"),
-    Booking.find({ date: today, status: { $nin: ["Cancelled", "No Show"] } }).populate("ground", "name").sort({ startTime: 1 }),
-    Booking.find({ status: "Pending" }).populate("ground", "name").sort({ date: 1, startTime: 1 }).limit(6),
-    Tournament.find({ status: { $ne: "Completed" } }).sort({ startDate: 1 }).limit(3).select("name startDate endDate status registeredTeams numberOfTeams"),
-    Customer.countDocuments(),
-    Team.countDocuments(),
-    Media.countDocuments(),
+    Booking.find({ ...byGround, date: { $in: days } }).select("date status advancePayment paymentStatus refundedAmount"),
+    Booking.find({ ...byGround, date: { $regex: `^${monthPrefix}` } }).select("status advancePayment paymentStatus refundedAmount"),
+    Booking.find({ ...byGround, date: today, status: { $nin: ["Cancelled", "No Show"] } }).populate("ground", "name").sort({ startTime: 1 }),
+    Booking.find({ ...byGround, status: "Pending" }).populate("ground", "name").sort({ date: 1, startTime: 1 }).limit(6),
+    Tournament.find({ ...byArena, status: { $ne: "Completed" } }).sort({ startDate: 1 }).limit(3).select("name startDate endDate status registeredTeams numberOfTeams"),
+    Customer.countDocuments(myCustomers === null ? {} : { _id: { $in: myCustomers } }),
+    myTeams === null ? Team.countDocuments() : Promise.resolve(myTeams.length),
+    Media.countDocuments(byArena),
     ArenaSettings.findOne().select("currency"),
   ]);
 
@@ -56,18 +64,27 @@ export async function GET() {
     };
   });
 
-  const pendingTotal = await Booking.countDocuments({ status: "Pending" });
-  const proofsTotal = await Booking.countDocuments({ status: "Pending", proofStatus: "submitted" });
+  let arenaName: string | undefined;
+  if (scope.arenaId) {
+    const a: any = await Arena.findById(scope.arenaId).select("name").lean();
+    arenaName = a?.name;
+  }
+
+  const pendingTotal = await Booking.countDocuments({ ...byGround, status: "Pending" });
+  const proofsTotal = await Booking.countDocuments({ ...byGround, status: "Pending", proofStatus: "submitted" });
+  const newInquiries = guard.auth.role === "super_admin" ? await Inquiry.countDocuments({ status: "new" }) : 0;
 
   return NextResponse.json(
     JSON.parse(
       JSON.stringify({
+        arenaName,
         currency: settings?.currency || "PKR",
         today,
         stats: {
           todayCount: todayList.length,
           pending: pendingTotal,
           proofs: proofsTotal,
+          newInquiries,
           monthRevenue: sum(monthBookings, netRevenue),
           monthRefunded: sum(monthBookings, refundedOf),
           monthBookings: monthBookings.filter(isActive).length,

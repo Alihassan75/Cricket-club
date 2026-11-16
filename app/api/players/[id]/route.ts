@@ -3,6 +3,7 @@ import { z } from "zod";
 import { connectDB } from "@/lib/mongodb";
 import Player from "@/models/Player";
 import { requireStaff } from "@/lib/guard";
+import { teamGuard } from "@/lib/arenaScope";
 import { zodMessage } from "@/lib/validation";
 
 const updateSchema = z.object({
@@ -25,6 +26,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   await connectDB();
+  const own = await Player.findById(params.id).select("team");
+  if (!own) return NextResponse.json({ error: "Player not found." }, { status: 404 });
+  const denied = await teamGuard(guard.auth, String(own.team));
+  if (denied) return denied;
   const player = await Player.findByIdAndUpdate(params.id, parsed.data, { new: true });
   if (!player) return NextResponse.json({ error: "Player not found." }, { status: 404 });
   return NextResponse.json({ player });
@@ -35,6 +40,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   if ("error" in guard) return guard.error;
 
   await connectDB();
+  const own = await Player.findById(params.id).select("team");
+  if (!own) return NextResponse.json({ error: "Player not found." }, { status: 404 });
+  const denied = await teamGuard(guard.auth, String(own.team));
+  if (denied) return denied;
   const player = await Player.findByIdAndDelete(params.id);
   if (!player) return NextResponse.json({ error: "Player not found." }, { status: 404 });
   return NextResponse.json({ message: "Player removed." });

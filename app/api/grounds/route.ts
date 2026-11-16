@@ -4,6 +4,7 @@ import { customSlotsSchema } from "@/lib/groundSlots";
 import { connectDB } from "@/lib/mongodb";
 import Ground, { FACILITIES } from "@/models/Ground";
 import { requireStaff } from "@/lib/guard";
+import { getScope, arenaFilter, arenaForCreate, inScope, outOfScope } from "@/lib/arenaScope";
 import { zodMessage } from "@/lib/validation";
 
 const groundSchema = z.object({
@@ -31,9 +32,10 @@ export async function GET(req: NextRequest) {
   if ("error" in guard) return guard.error;
 
   await connectDB();
+  const scope = await getScope(guard.auth);
   const status = req.nextUrl.searchParams.get("status");
-  const filter = status ? { status } : {};
-  const grounds = await Ground.find(filter).sort({ groundNumber: 1 });
+  const filter = { ...(status ? { status } : {}), ...arenaFilter(scope) };
+  const grounds = await Ground.find(filter).populate("arena", "name slug").sort({ groundNumber: 1 });
   return NextResponse.json({ grounds });
 }
 
@@ -47,6 +49,9 @@ export async function POST(req: NextRequest) {
   }
 
   await connectDB();
-  const ground = await Ground.create({ ...parsed.data, status: "active" });
+  const scope = await getScope(guard.auth);
+  const target = arenaForCreate(scope);
+  if ("error" in target) return target.error;
+  const ground = await Ground.create({ ...parsed.data, arena: target.arenaId, status: "active" });
   return NextResponse.json({ ground }, { status: 201 });
 }

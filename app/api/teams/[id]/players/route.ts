@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/mongodb";
 import Player from "@/models/Player";
 import Team from "@/models/Team";
 import { requireStaff } from "@/lib/guard";
+import { teamGuard } from "@/lib/arenaScope";
 import { zodMessage } from "@/lib/validation";
 
 const createSchema = z.object({
@@ -20,6 +21,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const guard = requireStaff();
   if ("error" in guard) return guard.error;
 
+  const denied = await teamGuard(guard.auth, params.id);
+  if (denied) return denied;
   await connectDB();
   const players = await Player.find({ team: params.id }).sort({ createdAt: 1 });
   return NextResponse.json({ players });
@@ -34,6 +37,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: zodMessage(parsed.error) || "Invalid player data." }, { status: 400 });
   }
 
+  const denied = await teamGuard(guard.auth, params.id);
+  if (denied) return denied;
   await connectDB();
   const team = await Team.findById(params.id);
   if (!team) return NextResponse.json({ error: "Team not found." }, { status: 404 });

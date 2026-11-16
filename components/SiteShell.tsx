@@ -6,10 +6,15 @@ type Settings = {
   phone?: string;
   whatsapp?: string;
   email?: string;
+  announcement?: string;
+  announcementOn?: boolean;
+  announcementLink?: string;
   socialLinks?: { facebook?: string; instagram?: string; twitter?: string };
 };
 
 const LINKS = [
+  { href: "/arenas", label: "Arenas" },
+  { href: "/play", label: "Play with us" },
   { href: "/tournaments", label: "Tournaments" },
   { href: "/gallery", label: "Gallery" },
   { href: "/grounds", label: "Book Ground" },
@@ -19,6 +24,11 @@ export default function SiteShell({ settings, children }: { settings: Settings; 
   const wa = settings.whatsapp?.replace(/\D/g, "");
   return (
     <div className="min-h-screen flex flex-col bg-cream text-[#14201A]">
+      {settings.announcementOn && settings.announcement && (
+        <div className="bg-ball text-white text-center text-sm font-semibold px-4 py-2">
+          {settings.announcementLink ? <a href={settings.announcementLink} className="underline underline-offset-4">{settings.announcement}</a> : settings.announcement}
+        </div>
+      )}
       <header className="bg-pitch sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-4 md:px-5 h-16 flex items-center gap-2.5 md:gap-5">
           <Link href="/" className="font-display uppercase tracking-wide text-white text-[15px] sm:text-lg lg:text-[22px] whitespace-nowrap flex items-center gap-2 flex-1 md:flex-none min-w-0">

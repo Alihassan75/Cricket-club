@@ -15,11 +15,10 @@ const NAV = [
 
 export default function PortalShell({ email, children }: { email: string; children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
 
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
+    window.location.assign("/login");
   };
 
   return (

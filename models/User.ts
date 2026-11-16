@@ -1,4 +1,4 @@
-import mongoose, { Schema, models, model } from "mongoose";
+import mongoose, { Schema, models, model, Types } from "mongoose";
 
 export type UserRole = "super_admin" | "arena_manager" | "staff" | "customer";
 
@@ -10,6 +10,8 @@ export interface IUser {
   passwordHash: string;
   role: UserRole;
   isEmailVerified: boolean;
+  isActive?: boolean; // false = switched off by the Backyard Manager
+  arena?: Types.ObjectId; // the arena an arena manager / staff member works for
   otpCodeHash?: string;
   otpPurpose?: "verify_email" | "reset_password";
   otpExpiresAt?: Date;
@@ -30,6 +32,8 @@ const UserSchema = new Schema<IUser>(
       default: "customer",
     },
     isEmailVerified: { type: Boolean, default: false },
+    isActive: { type: Boolean, default: true },
+    arena: { type: Schema.Types.ObjectId, ref: "Arena" },
     otpCodeHash: { type: String },
     otpPurpose: { type: String, enum: ["verify_email", "reset_password"] },
     otpExpiresAt: { type: Date },

@@ -16,7 +16,13 @@ if (!cached) {
 export async function connectDB() {
   if (cached.conn) return cached.conn;
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI).then((m) => m);
+    cached.promise = mongoose
+      .connect(MONGODB_URI, { serverSelectionTimeoutMS: 8000 })
+      .then((m) => m)
+      .catch((err) => {
+        cached.promise = null; // don't keep a failed attempt: the next request tries again
+        throw err;
+      });
   }
   cached.conn = await cached.promise;
   return cached.conn;

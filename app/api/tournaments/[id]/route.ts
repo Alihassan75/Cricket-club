@@ -3,8 +3,11 @@ import { z } from "zod";
 import { connectDB } from "@/lib/mongodb";
 import Tournament from "@/models/Tournament";
 import { requireStaff } from "@/lib/guard";
+import { getScope, inScope, outOfScope, tournamentGuard } from "@/lib/arenaScope";
 import { zodMessage } from "@/lib/validation";
 import TournamentEntry, { ACTIVE_ENTRY_STATUSES } from "@/models/TournamentEntry";
+import Match from "@/models/Match";
+import Media from "@/models/Media";
 
 const updateSchema = z.object({
   name: z.string().trim().min(2, "Tournament name must be at least 2 characters.").optional(),
@@ -30,6 +33,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     .populate("registeredTeams", "name logoUrl matchesPlayed matchesWon matchesLost")
     .populate("winner", "name");
   if (!tournament) return NextResponse.json({ error: "Tournament not found." }, { status: 404 });
+  if (!inScope(await getScope(guard.auth), tournament.arena)) return outOfScope("That tournament");
   return NextResponse.json({ tournament });
 }
 
@@ -45,6 +49,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   await connectDB();
   const current = await Tournament.findById(params.id);
   if (!current) return NextResponse.json({ error: "Tournament not found." }, { status: 404 });
+  if (!inScope(await getScope(guard.auth), current.arena)) return outOfScope("That tournament");
   const start = parsed.data.startDate ?? current.startDate;
   const end = parsed.data.endDate ?? current.endDate;
   if (end < start) return NextResponse.json({ error: "End date can't be before the start date." }, { status: 400 });
@@ -65,4 +70,24 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   );
   if (!tournament) return NextResponse.json({ error: "Tournament not found." }, { status: 404 });
   return NextResponse.json({ tournament });
+}
+
+/**
+ * Delete a tournament (its own arena's manager, or the Backyard Manager).
+ * Its team entries are removed too. Matches and photos are kept — they just stop pointing at the tournament.
+ */
+export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+  const guard = requireStaff();
+  if ("error" in guard) return guard.error;
+  const denied = await tournamentGuard(guard.auth, params.id);
+  if (denied) return denied;
+
+  await connectDB();
+  const [entries] = await Promise.all([
+    TournamentEntry.deleteMany({ tournament: params.id }),
+    Match.updateMany({ tournament: params.id }, { $unset: { tournament: "" } }),
+    Media.updateMany({ tournament: params.id }, { $unset: { tournament: "" } }),
+  ]);
+  await Tournament.deleteOne({ _id: params.id });
+  return NextResponse.json({ ok: true, entriesRemoved: entries.deletedCount });
 }

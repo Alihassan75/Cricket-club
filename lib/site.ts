@@ -17,6 +17,10 @@ export async function getSiteSettings() {
     whatsapp?: string;
     email?: string;
     currency: string;
+    tagline?: string;
+    announcement?: string;
+    announcementOn?: boolean;
+    announcementLink?: string;
     socialLinks?: { facebook?: string; instagram?: string; twitter?: string };
   }>(s ?? { arenaName: BRAND, currency: "PKR" });
   // Older databases still hold the previous default name; show the new club name instead.

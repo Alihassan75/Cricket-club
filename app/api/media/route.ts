@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { connectDB } from "@/lib/mongodb";
 import Media from "@/models/Media";
-import { requireStaff } from "@/lib/guard";
+import { requireStaff, requireAuth } from "@/lib/guard";
+import { getScope, arenaFilter, arenaForCreate } from "@/lib/arenaScope";
+import mongoose from "mongoose";
 import { youtubeId } from "@/lib/youtube";
 import { zodMessage } from "@/lib/validation";
 
@@ -25,6 +27,14 @@ export async function GET(req: NextRequest) {
   if (sp.get("album")) filter.album = sp.get("album");
   if (sp.get("type")) filter.type = sp.get("type");
   if (sp.get("tournament")) filter.tournament = sp.get("tournament");
+  // public: ?arena=<id> shows one arena's gallery. The dashboard asks with ?scope=1 and sees only its own arena.
+  if (sp.get("scope") === "1") {
+    const guard = requireStaff();
+    if ("error" in guard) return guard.error;
+    Object.assign(filter, arenaFilter(await getScope(guard.auth)));
+  } else if (sp.get("arena") && mongoose.isValidObjectId(sp.get("arena"))) {
+    filter.arena = sp.get("arena");
+  }
 
   await connectDB();
   const media = await Media.find(filter).sort({ createdAt: -1 }).limit(Number(sp.get("limit")) || 200);
@@ -48,6 +58,8 @@ export async function POST(req: NextRequest) {
   }
 
   await connectDB();
-  const media = await Media.create({ ...data, tournament: data.tournament || undefined });
+  const target = arenaForCreate(await getScope(guard.auth));
+  if ("error" in target) return target.error;
+  const media = await Media.create({ ...data, arena: target.arenaId, tournament: data.tournament || undefined });
   return NextResponse.json({ media }, { status: 201 });
 }

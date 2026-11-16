@@ -18,7 +18,7 @@ export type ProofBooking = {
 type Info = { instructions: string; holdMinutes: number; currency: string; phone: string };
 
 const METHODS = ["JazzCash", "Easypaisa", "Bank transfer"] as const;
-let infoCache: Info | null = null;
+const infoCache = new Map<string, Info>(); // payment details differ per arena, so cached per booking
 
 const fmt = (ms: number) => {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -33,7 +33,7 @@ const fmt = (ms: number) => {
 export default function PaymentProof({ booking, onChanged }: { booking: ProofBooking; onChanged?: () => void }) {
   const toast = useToast();
   const [b, setB] = useState(booking);
-  const [info, setInfo] = useState<Info | null>(infoCache);
+  const [info, setInfo] = useState<Info | null>(infoCache.get(booking._id) || null);
   const [method, setMethod] = useState<string>(booking.paymentMethod || "");
   const [reference, setReference] = useState(booking.paymentReference || "");
   const [file, setFile] = useState<File | null>(null);
@@ -47,9 +47,10 @@ export default function PaymentProof({ booking, onChanged }: { booking: ProofBoo
 
   useEffect(() => setB(booking), [booking]);
   useEffect(() => {
-    if (infoCache) return;
-    fetch("/api/portal/payment-info").then((r) => (r.ok ? r.json().catch(() => ({})) : null)).then((d) => { if (d) { infoCache = d; setInfo(d); } }).catch(() => {});
-  }, []);
+    const hit = infoCache.get(booking._id);
+    if (hit) return setInfo(hit);
+    fetch(`/api/portal/payment-info?bookingId=${booking._id}`).then((r) => (r.ok ? r.json().catch(() => ({})) : null)).then((d) => { if (d) { infoCache.set(booking._id, d); setInfo(d); } }).catch(() => {});
+  }, [booking._id]);
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);

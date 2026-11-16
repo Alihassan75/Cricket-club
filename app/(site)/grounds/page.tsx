@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { connectDB } from "@/lib/mongodb";
+import { listedArenaIds } from "@/lib/arenaListing";
 import Ground from "@/models/Ground";
 import { getSiteSettings, plain } from "@/lib/site";
 import SlotCard from "@/components/SlotCard";
@@ -11,7 +12,7 @@ export default async function GroundsPage() {
   const settings = await getSiteSettings();
   await connectDB();
   await ensureDefaultGround();
-  const gs = plain<any[]>(await Ground.find({ status: { $ne: "disabled" } }).sort({ name: 1 }));
+  const gs = plain<any[]>(await Ground.find({ arena: { $in: await listedArenaIds() }, status: { $ne: "disabled" } }).sort({ name: 1 }));
   return (
     <div className="max-w-6xl mx-auto px-5 py-12">
       <h1 className="font-display uppercase text-4xl sm:text-5xl break-words mb-2">Book a Ground</h1>

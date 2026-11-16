@@ -88,7 +88,10 @@ function BookForm() {
     setDone(true);
   };
 
-  if (!groundId) return <p className="text-sm text-gray-500">Pick a ground from the Grounds page first.</p>;
+  if (!groundId) {
+    if (typeof window !== "undefined") router.replace(`/portal/grounds${params.get("arena") ? `?arena=${params.get("arena")}` : ""}`);
+    return <p className="text-sm text-gray-500">Taking you to the grounds…</p>;
+  }
 
   if (done && selected) {
     return (

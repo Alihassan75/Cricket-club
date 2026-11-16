@@ -7,6 +7,7 @@ import { calculateBookingPrice } from "@/lib/pricing";
 import { violatesFixedSlots } from "@/lib/groundSlots";
 import { rangesOverlap } from "@/lib/time";
 import { requireStaff } from "@/lib/guard";
+import { getScope, groundRefFilter, inScope, outOfScope } from "@/lib/arenaScope";
 import { findOrCreateCustomer, recalculateCustomerStats } from "@/lib/customers";
 import { applyMembershipDiscount } from "@/lib/membership";
 import { validateCoupon, incrementCouponUsage } from "@/lib/coupons";
@@ -35,8 +36,14 @@ export async function GET(req: NextRequest) {
   await connectDB();
   await releaseExpiredHolds();
   const sp = req.nextUrl.searchParams;
-  const filter: Record<string, unknown> = {};
-  if (sp.get("groundId")) filter.ground = sp.get("groundId");
+  // The Backyard Manager's Bookings tab shows every arena at once (?all=1); otherwise stay inside the chosen arena.
+  const wantsAll = sp.get("all") === "1" && guard.auth.role === "super_admin";
+  const filter: Record<string, unknown> = { ...(wantsAll ? {} : await groundRefFilter(await getScope(guard.auth))) };
+  if (sp.get("groundId")) {
+    // keep the arena limit even when one ground is asked for
+    const allowed: any = (filter.ground as any)?.$in;
+    filter.ground = !allowed || allowed.some((i: any) => String(i) === sp.get("groundId")) ? sp.get("groundId") : { $in: [] };
+  }
   if (sp.get("status")) filter.status = sp.get("status");
   if (sp.get("paymentStatus")) filter.paymentStatus = sp.get("paymentStatus");
   if (sp.get("customerId")) filter.customer = sp.get("customerId");
@@ -56,7 +63,7 @@ export async function GET(req: NextRequest) {
   }
 
   const bookings = await Booking.find(filter)
-    .populate("ground", "name groundNumber")
+    .populate({ path: "ground", select: "name groundNumber arena", populate: { path: "arena", select: "name" } })
     .populate("customer", "fullName membershipStatus")
     .sort({ date: -1, startTime: 1 });
   return NextResponse.json({ bookings });
@@ -81,6 +88,7 @@ export async function POST(req: NextRequest) {
 
   const ground = await Ground.findById(groundId);
   if (!ground) return NextResponse.json({ error: "Ground not found." }, { status: 404 });
+  if (!inScope(await getScope(guard.auth), ground.arena)) return outOfScope("That ground");
   if (ground.status !== "active") {
     return NextResponse.json(
       { error: `${ground.name} is currently ${ground.status} and can't be booked.` },
@@ -157,6 +165,7 @@ export async function POST(req: NextRequest) {
     paymentStatus,
     status: "Confirmed",
     notes,
+    source: "staff",
     createdBy: guard.auth.userId,
   });
 

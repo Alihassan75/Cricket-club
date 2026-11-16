@@ -8,6 +8,7 @@ export type NotificationType =
   | "membership_expiry"
   | "tournament_match"
   | "maintenance"
+  | "inquiry"
   | "tournament_entry"
   | "membership_request"
   | "membership_allowed";
@@ -37,6 +38,7 @@ const NotificationSchema = new Schema<INotification>(
         "membership_expiry",
         "tournament_match",
         "maintenance",
+        "inquiry",
         "tournament_entry",
         "membership_request",
         "membership_allowed",
