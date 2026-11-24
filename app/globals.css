@@ -1,0 +1,207 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: var(--font-inter), Inter, system-ui, sans-serif;
+}
+/* Club logo: white-on-black artwork. On light backgrounds it is inverted to black-on-white. */
+.logo-on-light { filter: invert(1); mix-blend-mode: multiply; }
+.logo-on-dark { mix-blend-mode: screen; }
+/* Thin, wide-spaced caps like the "PAKISTAN" line of the logo */
+.eyebrow { letter-spacing: 0.32em; font-weight: 400; text-transform: uppercase; opacity: 0.75; }
+
+/* ---------- Public site: 3D cricket ball (pure CSS, no libraries) ---------- */
+.ball-scene {
+  --bs: 220px;
+  position: relative;
+  width: var(--bs);
+  height: var(--bs);
+  transform-style: preserve-3d;
+  animation: ball-float 5s ease-in-out infinite;
+}
+.ball-body {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffffff, #d6d6d6 50%, #4a4a4a);
+  box-shadow: 0 40px 60px -20px rgba(0, 0, 0, 0.55);
+}
+.ball-tilt {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: rotateZ(-24deg) rotateX(18deg);
+}
+.ball-spin {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  animation: ball-spin 7s linear infinite;
+}
+.ball-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-sizing: border-box;
+  transform: rotateY(62deg);
+  transform-style: preserve-3d;
+}
+.ball-ring.seam { border: 3px solid #0a0a0a; }
+.ball-ring.stitch-a { border: 2px dashed #0a0a0a; transform: rotateY(62deg) translateZ(calc(var(--bs) * 0.07)) scale(0.997); }
+.ball-ring.stitch-b { border: 2px dashed #0a0a0a; transform: rotateY(62deg) translateZ(calc(var(--bs) * -0.07)) scale(0.997); }
+.ball-shine {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translateZ(calc(var(--bs) * 0.6));
+  background:
+    radial-gradient(circle at 30% 26%, rgba(255, 255, 255, 0.5), transparent 32%),
+    radial-gradient(circle at 72% 78%, rgba(0, 0, 0, 0.5), transparent 62%);
+}
+@keyframes ball-spin { to { transform: rotateY(360deg); } }
+@keyframes ball-float { 50% { transform: translateY(-14px); } }
+@media (prefers-reduced-motion: reduce) {
+  .ball-scene, .ball-spin { animation: none; }
+}
+
+/* ---------- Hero scene: stumps at the back, bat + bouncing ball in front ---------- */
+.cricket-scene { position: relative; width: 460px; height: 430px; flex-shrink: 0; }
+.cricket-scene .stumps { position: absolute; left: 250px; bottom: 70px; z-index: 1; transform: scale(1.25); transform-origin: bottom center; }
+.cricket-scene .bat {
+  position: absolute; left: 140px; bottom: 20px; z-index: 2;
+  transform-origin: 50% 96%; transform: rotate(14deg);
+  animation: bat-swing 3.6s ease-in-out infinite;
+  filter: drop-shadow(0 18px 14px rgba(0, 0, 0, 0.45));
+}
+.cricket-scene .cs-ball { position: absolute; left: 300px; bottom: 6px; z-index: 3; }
+.cricket-scene .cs-ball .ball-scene { animation: ball-bounce 1.8s cubic-bezier(0.3, 0, 0.4, 1) infinite; }
+.cricket-scene .cs-ball .ball-body { box-shadow: none; }
+.cricket-scene .cs-shadow {
+  position: absolute; left: 306px; bottom: 0; width: 120px; height: 16px; z-index: 2;
+  border-radius: 50%; background: #000; filter: blur(4px); opacity: 0.45;
+  animation: shadow-pulse 1.8s cubic-bezier(0.3, 0, 0.4, 1) infinite;
+}
+.cricket-scene .bail { transform-box: fill-box; transform-origin: center; animation: bail-hop 3.6s ease-in-out infinite; }
+.cricket-scene .bail.b2 { animation-delay: 0.12s; }
+@keyframes bat-swing { 0%, 100% { transform: rotate(14deg); } 50% { transform: rotate(22deg); } }
+@keyframes ball-bounce { 0%, 100% { transform: translateY(0); } 45% { transform: translateY(-70px); } }
+@keyframes shadow-pulse { 0%, 100% { transform: scale(1); opacity: 0.45; } 45% { transform: scale(0.7); opacity: 0.22; } }
+@keyframes bail-hop { 0%, 60%, 100% { transform: translateY(0) rotate(0); } 70% { transform: translateY(-6px) rotate(-8deg); } }
+@media (max-width: 819px) { .cricket-scene { transform: scale(0.62); transform-origin: top center; margin: 10px auto -205px; } }
+@media (prefers-reduced-motion: reduce) { .cricket-scene .bat, .cricket-scene .bail, .cricket-scene .cs-ball .ball-scene, .cricket-scene .cs-shadow { animation: none; } }
+
+/* ---------- Arena 3D: floating ball over a glowing floor ring + tilt cards ---------- */
+.o3d-wrap { position: relative; width: 380px; height: 320px; flex-shrink: 0; }
+.o3d-pool {
+  position: absolute; left: 10px; top: 214px; width: 360px; height: 96px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(74, 222, 128, 0.34), rgba(22, 163, 74, 0.12) 60%, transparent);
+  animation: o3d-glow 4.5s ease-in-out infinite;
+}
+.o3d-stage { --px: 0; --py: 0; position: absolute; inset: 0; perspective: 900px; }
+.o3d-cam {
+  position: absolute; inset: 0; transform-style: preserve-3d;
+  transform: rotateX(calc(var(--py) * -8deg)) rotateY(calc(var(--px) * 12deg));
+  transition: transform 0.25s ease-out;
+}
+.o3d-cam > * { position: absolute; }
+.o3d-ring { border-radius: 50%; transform-style: preserve-3d; transform: rotateX(74deg); }
+.o3d-ring.r1 { left: 40px; top: 112px; width: 300px; height: 300px; border: 2px solid rgba(74, 222, 128, 0.6); background: radial-gradient(closest-side, rgba(34, 197, 94, 0.3), rgba(21, 128, 61, 0.16) 72%, rgba(21, 128, 61, 0.05)); box-shadow: 0 0 28px rgba(74, 222, 128, 0.35), inset 0 0 30px rgba(34, 197, 94, 0.22); }
+.o3d-ring.r2 { left: 85px; top: 157px; width: 210px; height: 210px; border: 1.5px dashed rgba(134, 239, 172, 0.55); }
+.o3d-spin { position: absolute; inset: 0; transform-style: preserve-3d; animation: o3d-orbit 9s linear infinite; }
+.o3d-spin.rev { animation: o3d-orbit-rev 12s linear infinite; }
+.o3d-dotpos { position: absolute; left: 100%; top: 50%; width: 0; height: 0; transform-style: preserve-3d; }
+.o3d-dot {
+  position: absolute; left: -14px; top: -14px; width: 28px; height: 28px; border-radius: 50%;
+  background: radial-gradient(circle closest-side, #eafff1 0 30%, rgba(74, 222, 128, 0.6) 45%, rgba(74, 222, 128, 0) 100%);
+  animation: o3d-face 9s linear infinite;
+}
+.o3d-spin.rev .o3d-dot { animation: o3d-face-rev 12s linear infinite; }
+.o3d-dot.sm { left: -9px; top: -9px; width: 18px; height: 18px; }
+.o3d-shadow {
+  left: 120px; top: 246px; width: 140px; height: 34px; border-radius: 50%; background: radial-gradient(closest-side, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
+  animation: o3d-shadow 4.5s ease-in-out infinite;
+}
+.o3d-main { left: 115px; top: 34px; transform: translateZ(30px); animation: o3d-bob 4.5s ease-in-out infinite; }
+.o3d-main .ball-scene { animation: none; }
+
+@keyframes o3d-orbit { to { transform: rotateZ(360deg); } }
+@keyframes o3d-orbit-rev { to { transform: rotateZ(-360deg); } }
+@keyframes o3d-face { from { transform: rotateZ(0) rotateX(-74deg); } to { transform: rotateZ(-360deg) rotateX(-74deg); } }
+@keyframes o3d-face-rev { from { transform: rotateZ(0) rotateX(-74deg); } to { transform: rotateZ(360deg) rotateX(-74deg); } }
+@keyframes o3d-bob { 0%, 100% { transform: translateZ(30px) translateY(0); } 50% { transform: translateZ(30px) translateY(-16px); } }
+@keyframes o3d-shadow { 0%, 100% { opacity: 0.55; transform: scale(1); } 50% { opacity: 0.3; transform: scale(0.8); } }
+@keyframes o3d-glow { 0%, 100% { opacity: 0.8; } 50% { opacity: 1; } }
+@media (max-width: 767px) {
+  .o3d-wrap { width: 100%; max-width: 380px; height: 250px; margin: 0 auto; }
+  .o3d-pool, .o3d-stage { left: 50%; margin-left: -190px; width: 380px; transform: scale(0.78); transform-origin: top center; }
+  .o3d-pool { width: 360px; margin-left: -180px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .o3d-pool, .o3d-spin, .o3d-dot, .o3d-shadow, .o3d-main { animation: none; }
+  .o3d-cam { transform: none; transition: none; }
+}
+
+.t3d { position: relative; transition: transform 0.18s ease-out, opacity 0.6s ease, box-shadow 0.2s; will-change: transform; transform-style: preserve-3d; }
+.t3d:hover { box-shadow: 0 22px 40px -14px rgba(14, 42, 31, 0.35); }
+.t3d-pre { opacity: 0; transform: perspective(900px) rotateX(24deg) translateY(36px) scale(0.96); }
+.t3d-glare {
+  position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity 0.2s;
+  background: radial-gradient(circle at var(--gx, 50%) var(--gy, 0%), rgba(255, 255, 255, 0.28), transparent 55%);
+}
+.t3d:hover .t3d-glare { opacity: 1; }
+@media (hover: none), (prefers-reduced-motion: reduce) { .t3d { transition: opacity 0.4s; } .t3d-pre { transform: none; } .t3d-glare { display: none; } }
+
+/* ---------- Logged-in app: motion + micro-interactions ---------- */
+@keyframes fade-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes pop-in { from { opacity: 0; transform: scale(0.95) translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes toast-in { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: none; } }
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+@keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(200, 55, 45, 0.5); } 100% { box-shadow: 0 0 0 10px rgba(200, 55, 45, 0); } }
+.fade-up { animation: fade-up 0.35s ease backwards; } /* no "forwards": a finished animation must not trap pop-ups in a stacking context */
+.pop-in { animation: pop-in 0.15s ease backwards; }
+.toast-in { animation: toast-in 0.25s ease both; }
+.pulse-ring { animation: pulse-ring 1.6s infinite; }
+.skeleton { position: relative; overflow: hidden; background: #e6e6e6; border-radius: 12px; }
+.skeleton::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent); animation: shimmer 1.3s infinite; }
+.hover-lift { transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s; }
+.hover-lift:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(14, 42, 31, 0.12); }
+.app-shell button, .app-shell a { transition: transform 0.12s, background-color 0.15s, box-shadow 0.15s, opacity 0.15s; }
+.app-shell button:not(:disabled):active { transform: scale(0.97); }
+.app-shell tbody tr { transition: background-color 0.12s; }
+.app-shell tbody tr:hover { background: rgba(14, 42, 31, 0.04); }
+.app-shell input:focus, .app-shell select:focus, .app-shell textarea:focus { outline: 2px solid rgba(200, 55, 45, 0.45); outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) { .fade-up, .pop-in, .toast-in, .pulse-ring, .skeleton::after { animation: none; } }
+
+/* ---------- Shared form + button styles ---------- */
+.field { width: 100%; border: 1px solid #DEDEDE; background: #fff; border-radius: 14px; padding: 12px 14px; font-size: 14px; transition: border-color 0.15s, box-shadow 0.15s; outline: none; }
+.field:focus { border-color: #0A0A0A; box-shadow: 0 0 0 3px rgba(10, 10, 10, 0.12); }
+.btn-ball { background: #16A34A; color: #fff; font-weight: 600; font-size: 14px; border-radius: 999px; padding: 12px 24px; transition: transform 0.12s, box-shadow 0.15s, opacity 0.15s; }
+.btn-ball:hover:not(:disabled) { box-shadow: 0 8px 20px rgba(22, 163, 74, 0.3); transform: translateY(-1px); }
+.btn-ball:disabled { opacity: 0.55; cursor: not-allowed; }
+@keyframes draw-check { from { stroke-dashoffset: 40; } to { stroke-dashoffset: 0; } }
+.draw-check { stroke-dasharray: 40; animation: draw-check 0.6s 0.2s ease forwards; stroke-dashoffset: 40; }
+
+/* ---- 24-hour board: tap an empty hour ---- */
+.hour-tap:hover { transform: translateY(-3px); }
+.hour-tap:active { transform: scale(0.96); }
+.hour-picked { animation: hourPop 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.4) both; box-shadow: 0 8px 28px -4px rgba(34, 197, 94, 0.7); z-index: 1; }
+.hour-picked::after { content: ""; position: absolute; inset: 0; border-radius: inherit; border: 2px solid currentColor; animation: hourRing 0.8s ease-out infinite; }
+.hour-picked .hour-check { animation: hourCheck 0.4s 0.15s both; }
+@keyframes hourPop { 0% { transform: scale(1); } 45% { transform: scale(1.14) rotate(-1.5deg); } 100% { transform: scale(1.06); } }
+@keyframes hourRing { 0% { opacity: 0.7; transform: scale(1); } 100% { opacity: 0; transform: scale(1.35); } }
+@keyframes hourCheck { from { opacity: 0; transform: scale(0) rotate(-90deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
+
+/* confetti on "slot reserved" */
+.confetti-bit { position: absolute; top: 0; width: 8px; height: 14px; border-radius: 2px; opacity: 0; animation: confettiFall 1.6s ease-out forwards; }
+@keyframes confettiFall { 0% { opacity: 1; transform: translate(0, -10px) rotate(0); } 100% { opacity: 0; transform: translate(var(--dx), 360px) rotate(var(--rot)); } }
+
+/* tagline strip scrolls sideways, forever */
+.marquee-track { animation: marquee 32s linear infinite; }
+@keyframes marquee { to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } }
+
+/* ticket-shaped slot cards (home page): notches cut into both sides, level with the tear line */
+.ticket { -webkit-mask: radial-gradient(circle 11px at 0 68%, #0000 98%, #000) left / 51% 100% no-repeat, radial-gradient(circle 11px at 100% 68%, #0000 98%, #000) right / 51% 100% no-repeat; mask: radial-gradient(circle 11px at 0 68%, #0000 98%, #000) left / 51% 100% no-repeat, radial-gradient(circle 11px at 100% 68%, #0000 98%, #000) right / 51% 100% no-repeat; }
+.ticket:hover .ticket-go { transform: rotate(-45deg) scale(1.1); }
